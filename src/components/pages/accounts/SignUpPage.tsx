@@ -25,7 +25,6 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ setIsLoggedIn }) => {
       showAlert('User created successfully!', 'success');
       navigate('/login');
     } catch (error) {
-      console.error('Error during user creation:', error);
       showAlert('Failed to create account. Please try again later.', 'error');
     }
   };

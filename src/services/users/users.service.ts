@@ -32,7 +32,11 @@ export const AuthService = {
 
     async logout(): Promise<void> {
         try {
-            await Authapi.post(`${API_CONFIG.AUTH_URL}/auth/logout`, {}, { withCredentials: true });
+            await Authapi.post(
+                `${API_CONFIG.AUTH_URL}/auth/logout`, 
+                {}, 
+                { withCredentials: true },
+            );
         } catch (error) {
             console.error('Logout error:', error);
             throw new Error('Failed to logout');
@@ -53,11 +57,11 @@ export const AuthService = {
         }
     },
   
-    async signup(username: string, email: string, password: string): Promise<UserEntity> {
-      const response = await Authapi.post<ApiResponse<UserEntity>>(
-        `${API_CONFIG.AUTH_URL}/users/create`,
-        { username, email, password }
-      );
-      return response.data.data;
+    async signup(username: string, email: string, password: string): Promise<void> {
+        await Authapi.post<ApiResponse<void>>(
+          `${API_CONFIG.AUTH_URL}/users/create`,
+          { username, email, password },
+          { withCredentials: true }
+        );
     },
-  };
+};
