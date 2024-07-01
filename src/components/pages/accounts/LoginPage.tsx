@@ -1,9 +1,6 @@
-import axios from 'axios';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAlert } from '../../AlertsProvider';
-import { API_CONFIG } from '../../../common/constants/api-url.config';
-import Cookies from 'js-cookie';
 import { AuthService } from '../../../services/users/users.service';
 
 interface LoginPageProps {

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { FiUser, FiShoppingBag, FiHeart, FiEdit2, FiMoon, FiSun } from 'react-icons/fi';
+import { FiUser, FiShoppingBag, FiHeart, FiEdit2, FiMoon, FiSun, FiTrash2, FiSave } from 'react-icons/fi';
 import { AuthService } from '../../../services/users/users.service';
+import { useAlert } from '../../AlertsProvider';
+import { useNavigate } from 'react-router-dom';
 
 interface UserData {
   id: string;
@@ -14,27 +16,75 @@ const UserAccountPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editedUser, setEditedUser] = useState<UserData | null>(null);
+  const { showAlert } = useAlert();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    async function fetchUserData() {
-      try {
-        const userData = await AuthService.getUser();
-        setUser(userData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchUserData();
   }, []);
+
+  async function fetchUserData() {
+    try {
+      setLoading(true);
+      const userData = await AuthService.getUser();
+      setUser(userData);
+      setEditedUser(userData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      showAlert(`Failed to fetch user data.`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
   };
 
-  const renderTabContent = () => {
+  const handleEdit = () => {
+    setEditMode(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editedUser) {
+        await AuthService.updateProfile(editedUser);
+        setUser(editedUser);
+        setEditMode(false);
+        showAlert(`Profile updated successfully!`, 'success');
+      }
+    } catch (err) {
+      showAlert(`Failed to update profile. Please try again later.`, 'error');
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedUser(user);
+    setEditMode(false);
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      try {
+        await AuthService.deleteAccount();
+        showAlert(`Account deleted successfully.`, 'success');
+        // Redirect to home page or login page
+        navigate('/');
+      } catch (err) {
+        showAlert(`Failed to delete account. Please try again later.`, 'error');
+      }
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (editedUser) {
+      setEditedUser({ ...editedUser, [e.target.name]: e.target.value });
+    }
+  };
+
+  const renderProfileContent = () => {
     if (loading) {
       return <div className="text-center py-4">Loading...</div>;
     }
@@ -47,33 +97,78 @@ const UserAccountPage: React.FC = () => {
       return <div className="text-center py-4">No user data available</div>;
     }
 
+    return (
+      <div className="space-y-6">
+        <h3 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pink-600 text-transparent bg-clip-text">Profile Information</h3>
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 space-y-6 shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Username</p>
+              {editMode ? (
+                <input
+                  type="text"
+                  name="username"
+                  value={editedUser?.username || ''}
+                  onChange={handleChange}
+                  className={`text-2xl font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-800'} rounded p-2`}
+                />
+              ) : (
+                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.username}</p>
+              )}
+            </div>
+            {!editMode && (
+              <button onClick={handleEdit} className="text-indigo-600 hover:text-indigo-800 transition-colors duration-300">
+                <FiEdit2 size={24} />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Email Address</p>
+              {editMode ? (
+                <input
+                  type="email"
+                  name="email"
+                  value={editedUser?.email || ''}
+                  onChange={handleChange}
+                  className={`text-2xl font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-800'} rounded p-2`}
+                />
+              ) : (
+                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.email}</p>
+              )}
+            </div>
+            {!editMode && (
+              <button onClick={handleEdit} className="text-indigo-600 hover:text-indigo-800 transition-colors duration-300">
+                <FiEdit2 size={24} />
+              </button>
+            )}
+          </div>
+          {editMode && (
+            <div className="flex justify-end space-x-4 mt-4">
+              <button onClick={handleCancel} className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition-colors duration-300">
+                Cancel
+              </button>
+              <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors duration-300 flex items-center">
+                <FiSave className="mr-2" />
+                Save Changes
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="mt-8">
+          <button onClick={handleDelete} className="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors duration-300 flex items-center">
+            <FiTrash2 className="mr-2" />
+            Delete Account
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTabContent = () => {
     switch (activeTab) {
       case 'profile':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pink-600 text-transparent bg-clip-text">Profile Information</h3>
-            <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 space-y-6 shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Username</p>
-                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.username}</p>
-                </div>
-                <button className="text-indigo-600 hover:text-indigo-800 transition-colors duration-300">
-                  <FiEdit2 size={24} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Email Address</p>
-                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.email}</p>
-                </div>
-                <button className="text-indigo-600 hover:text-indigo-800 transition-colors duration-300">
-                  <FiEdit2 size={24} />
-                </button>
-              </div>
-            </div>
-          </div>
-        );
+        return renderProfileContent();
       case 'orders':
         return (
           <div className="space-y-6">
