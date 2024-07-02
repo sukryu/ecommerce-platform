@@ -5,6 +5,8 @@ import Footer from './components/pages/Footer';
 import Loading from './components/Loading';
 import { AlertProvider } from './components/AlertsProvider';
 import { AuthService } from './services/users/users.service';
+import AdminDashboardPage from './components/pages/admin/AdminDashboardPage';
+import UserManagementPage from './components/pages/admin/UserManagementPage';
 
 const HomePage = lazy(() => import('./components/pages/HomePage'));
 const ProductListPage = lazy(() => import('./components/pages/products/ProductListPage'));
@@ -25,9 +27,9 @@ const App: React.FC = () => {
     const checkAuthStatus = async () => {
       try {
         const user = await AuthService.getUser();
+        console.table(user);
         setIsLoggedIn(true);
-        setUserRoles(user.roles.map(role => role.name));
-        console.log('User roles:', user.roles);
+        setUserRoles(user.roles);
       } catch (error) {
         setIsLoggedIn(false);
         setUserRoles([]);
@@ -44,8 +46,7 @@ const App: React.FC = () => {
   }
 
   const isSuperAdmin = userRoles.includes('SUPERADMIN');
-  console.log('Is super admin:', isSuperAdmin);
-
+  
   return (
     <Router>
       <AlertProvider>
@@ -78,6 +79,14 @@ const App: React.FC = () => {
                 <Route 
                   path="/signup" 
                   element={!isLoggedIn ? <SignUpPage setIsLoggedIn={setIsLoggedIn} /> : <Navigate to="/account" replace />} 
+                />
+                <Route 
+                  path="/admin" 
+                  element={isLoggedIn && isSuperAdmin ? <AdminDashboardPage /> : <Navigate to="/" replace />} 
+                />
+                <Route 
+                  path="/admin/users" 
+                  element={isLoggedIn && isSuperAdmin ? <UserManagementPage /> : <Navigate to="/" replace />} 
                 />
                 <Route 
                   path="/admin/roles" 
