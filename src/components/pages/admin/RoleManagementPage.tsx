@@ -1,44 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { AuthService, Role, UserEntity } from '../../../services/users/users.service';
+import { useRole } from '../../../hooks/useRole';
 import { useAlert } from '../../AlertsProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiEdit2, FiTrash2, FiUsers, FiX } from 'react-icons/fi';
+import { UserEntity } from '../../../api/types/user.type';
+import { Role } from '../../../api/types/role.type';
+import { CreateRoleDto } from '../../../api/dto/role/create-role.dto';
+import { UpdateRoleDto } from '../../../api/dto/role/update-role.dto';
 
 const RoleManagementPage: React.FC = () => {
-  const [roles, setRoles] = useState<Role[] | null>(null);
   const [newRoleName, setNewRoleName] = useState('');
   const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedRoleUsers, setSelectedRoleUsers] = useState<{ role: Role; users: UserEntity[] } | null>(null);
+
+  const { roles, error, loading, getRoles, createRole, updateRole, deleteRole, getRoleUsers } = useRole();
   const { showAlert } = useAlert();
 
   useEffect(() => {
-    fetchRoles();
-  }, []);
-
-  const fetchRoles = async () => {
-    setIsLoading(true);
-    try {
-      const fetchedRoles = await AuthService.getRoles();
-      setRoles(fetchedRoles);
-    } catch (error) {
-      console.error('Error fetching roles:', error);
-      showAlert('Failed to fetch roles', 'error');
-      setRoles([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    getRoles();
+  }, [getRoles]);
 
   const handleCreateRole = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const newRole = await AuthService.createRole(newRoleName);
+      const createRoleDto: CreateRoleDto = { name: newRoleName };
+      await createRole(createRoleDto);
       showAlert('Role created successfully', 'success');
       setNewRoleName('');
-      setRoles(prevRoles => prevRoles ? [...prevRoles, newRole] : [newRole]);
     } catch (error) {
-      console.error('Error creating role:', error);
       showAlert('Failed to create role', 'error');
     }
   };
@@ -47,12 +36,11 @@ const RoleManagementPage: React.FC = () => {
     e.preventDefault();
     if (!editingRole) return;
     try {
-      const updatedRole = await AuthService.updateRole(editingRole.id, editingRole.name);
+      const updateRoleDto: UpdateRoleDto = { name: editingRole.name };
+      await updateRole(editingRole.id, updateRoleDto);
       showAlert('Role updated successfully', 'success');
       setEditingRole(null);
-      setRoles(prevRoles => prevRoles ? prevRoles.map(role => role.id === updatedRole.id ? updatedRole : role) : null);
     } catch (error) {
-      console.error('Error updating role:', error);
       showAlert('Failed to update role', 'error');
     }
   };
@@ -60,11 +48,9 @@ const RoleManagementPage: React.FC = () => {
   const handleDeleteRole = async (roleId: number) => {
     if (window.confirm('Are you sure you want to delete this role?')) {
       try {
-        await AuthService.deleteRole(roleId);
+        await deleteRole(roleId);
         showAlert('Role deleted successfully', 'success');
-        setRoles(prevRoles => prevRoles ? prevRoles.filter(role => role.id !== roleId) : null);
       } catch (error) {
-        console.error('Error deleting role:', error);
         showAlert('Failed to delete role', 'error');
       }
     }
@@ -72,16 +58,19 @@ const RoleManagementPage: React.FC = () => {
 
   const handleViewUsers = async (role: Role) => {
     try {
-      const users = await AuthService.getRoleUsers(role.id);
-      setSelectedRoleUsers({ role, users });
+      const users = await getRoleUsers(role.id);
+      setSelectedRoleUsers({ role, users: users || [] });  // Handle potential undefined value
     } catch (error) {
-      console.error('Error fetching role users:', error);
       showAlert('Failed to fetch users for this role', 'error');
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return <div className="flex justify-center items-center h-screen">Loading roles...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500">{error}</div>;
   }
 
   return (
@@ -108,9 +97,7 @@ const RoleManagementPage: React.FC = () => {
         </div>
       </form>
 
-      {roles === null ? (
-        <p>Error loading roles.</p>
-      ) : roles.length === 0 ? (
+      {roles.length === 0 ? (
         <p>No roles found.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

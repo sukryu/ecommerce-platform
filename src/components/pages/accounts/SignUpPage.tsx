@@ -1,31 +1,32 @@
-import axios from 'axios';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { API_CONFIG } from '../../../common/constants/api-url.config';
+import { useAuth } from '../../../hooks/useAuth';
 import { useAlert } from '../../AlertsProvider';
-import { AuthService } from '../../../services/users/users.service';
+import { CreateUserDto } from '../../../api/dto/user/create-user.dto';
 
-interface SignUpPageProps {
-    setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-const SignUpPage: React.FC<SignUpPageProps> = ({ setIsLoggedIn }) => {
+const SignUpPage: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
+  const { signup, error } = useAuth();
   const { showAlert } = useAlert();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
     try {
-      await AuthService.signup(name, email, password);
+      const createUserDto: CreateUserDto = { username: name, email, password };
+      await signup(createUserDto);
       showAlert('User created successfully!', 'success');
       navigate('/login');
     } catch (error) {
       showAlert('Failed to create account. Please try again later.', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,12 +96,19 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ setIsLoggedIn }) => {
             <div>
               <button
                 type="submit"
+                disabled={isLoading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
               >
-                Sign up
+                {isLoading ? 'Signing up...' : 'Sign up'}
               </button>
             </div>
           </form>
+
+          {error && (
+            <div className="mt-4 text-center text-red-600">
+              {error}
+            </div>
+          )}
 
           <div className="mt-6 text-center">
             <Link to="/login" className="font-medium text-primary hover:text-primary-dark">

@@ -1,33 +1,24 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAlert } from '../AlertsProvider';
-import { AuthService } from '../../services/users/users.service';
+import { useAuth } from '../../hooks/useAuth';
 
-interface HeaderProps {
-  isLoggedIn: boolean;
-  setIsLoggedIn: (value: boolean) => void;
-  isSuperAdmin: boolean;
-  userRoles: string[];
-}
-
-const Header: React.FC<HeaderProps> = ({ isLoggedIn, setIsLoggedIn, isSuperAdmin, userRoles }) => {
+const Header: React.FC = () => {
   const navigate = useNavigate();
   const { showAlert } = useAlert();
+  const { user, logout } = useAuth();
 
   const handleLogout = async () => {
     try {
-      await AuthService.logout();
-      setIsLoggedIn(false);
+      await logout();
       showAlert('Successfully logged out', 'success');
       navigate('/');
     } catch (error) {
-      console.error('Logout error:', error);
       showAlert('Failed to logout. Please try again.', 'error');
     }
   };
 
-  const isAdmin = isSuperAdmin || userRoles.includes('ADMIN');
-  console.log('Is admin:', isAdmin);
+  const isAdmin = user?.roles.includes('SUPERADMIN') || user?.roles.includes('ADMIN');
 
   return (
     <header className="bg-primary text-white shadow-md">
@@ -37,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, setIsLoggedIn, isSuperAdmin
           <ul className="flex space-x-6">
             <li><Link to="/products" className="hover:text-secondary-light transition duration-300">Products</Link></li>
             <li><Link to="/cart" className="hover:text-secondary-light transition duration-300">Cart</Link></li>
-            {isLoggedIn && (
+            {user ? (
               <>
                 <li><Link to="/account" className="hover:text-secondary-light transition duration-300">My Account</Link></li>
                 {isAdmin && (
@@ -54,8 +45,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, setIsLoggedIn, isSuperAdmin
                   </button>
                 </li>
               </>
-            )}
-            {!isLoggedIn && (
+            ) : (
               <>
                 <li>
                   <Link 

@@ -1,148 +1,105 @@
-import React, { useEffect, useState } from 'react';
-import { FiUser, FiShoppingBag, FiHeart, FiEdit2, FiMoon, FiSun, FiTrash2, FiSave } from 'react-icons/fi';
-import { AuthService } from '../../../services/users/users.service';
-import { useAlert } from '../../AlertsProvider';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiUser, FiShoppingBag, FiHeart, FiEdit2, FiMoon, FiSun, FiTrash2, FiSave } from 'react-icons/fi';
+import { useAuth } from '../../../hooks/useAuth';
+import { useAlert } from '../../AlertsProvider';
+import { UpdateUserDto } from '../../../api/dto/user/update-user.dto';
+import { UserEntity } from '../../../api/types/user.type';
 
-interface UserData {
-  id: string;
-  username: string;
-  email: string;
-}
+type TabId = 'profile' | 'orders' | 'wishlist';
 
 const UserAccountPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [user, setUser] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>('profile');
   const [darkMode, setDarkMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [editedUser, setEditedUser] = useState<UserData | null>(null);
+  const [editedUser, setEditedUser] = useState<UpdateUserDto | null>(null);
+
+  const { user, error, loading, updateProfile, deleteAccount } = useAuth();
   const { showAlert } = useAlert();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchUserData();
+  const toggleDarkMode = useCallback(() => setDarkMode(prev => !prev), []);
+
+  const handleEdit = useCallback(() => {
+    if (user) {
+      setEditedUser({ email: user.email, username: user.username });
+      setEditMode(true);
+    }
+  }, [user]);
+
+  const handleSave = useCallback(async () => {
+    if (!editedUser) return;
+    try {
+      await updateProfile(editedUser);
+      showAlert('Profile updated successfully!', 'success');
+      setEditMode(false);
+    } catch (error) {
+      showAlert('Failed to update profile. Please try again later.', 'error');
+    }
+  }, [editedUser, updateProfile, showAlert]);
+
+  const handleCancel = useCallback(() => {
+    setEditedUser(null);
+    setEditMode(false);
   }, []);
 
-  async function fetchUserData() {
-    try {
-      setLoading(true);
-      const userData = await AuthService.getUser();
-      setUser(userData);
-      setEditedUser(userData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      showAlert(`Failed to fetch user data.`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
-
-  const handleEdit = () => {
-    setEditMode(true);
-  };
-
-  const handleSave = async () => {
-    try {
-      if (editedUser) {
-        await AuthService.updateProfile(editedUser);
-        setUser(editedUser);
-        setEditMode(false);
-        showAlert(`Profile updated successfully!`, 'success');
-      }
-    } catch (err) {
-      showAlert(`Failed to update profile. Please try again later.`, 'error');
-    }
-  };
-
-  const handleCancel = () => {
-    setEditedUser(user);
-    setEditMode(false);
-  };
-
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
       try {
-        await AuthService.deleteAccount();
-        showAlert(`Account deleted successfully.`, 'success');
-        // Redirect to home page or login page
+        await deleteAccount();
+        showAlert('Account deleted successfully.', 'success');
         navigate('/');
-      } catch (err) {
-        showAlert(`Failed to delete account. Please try again later.`, 'error');
+      } catch (error) {
+        showAlert('Failed to delete account. Please try again later.', 'error');
       }
     }
-  };
+  }, [deleteAccount, showAlert, navigate]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (editedUser) {
-      setEditedUser({ ...editedUser, [e.target.name]: e.target.value });
-    }
-  };
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditedUser(prev => prev ? { ...prev, [name]: value } : null);
+  }, []);
 
-  const renderProfileContent = () => {
-    if (loading) {
-      return <div className="text-center py-4">Loading...</div>;
-    }
+  const tabs = useMemo(() => [
+    { id: 'profile' as const, icon: FiUser, label: 'Profile' },
+    { id: 'orders' as const, icon: FiShoppingBag, label: 'Orders' },
+    { id: 'wishlist' as const, icon: FiHeart, label: 'Wishlist' },
+  ], []);
 
-    if (error) {
-      return <div className="text-center py-4 text-red-500">{error}</div>;
-    }
-
-    if (!user) {
-      return <div className="text-center py-4">No user data available</div>;
-    }
+  const renderProfileContent = useCallback(() => {
+    if (loading) return <div className="text-center py-4">Loading...</div>;
+    if (error) return <div className="text-center py-4 text-red-500">{error}</div>;
+    if (!user) return <div className="text-center py-4">No user data available</div>;
 
     return (
       <div className="space-y-6">
         <h3 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pink-600 text-transparent bg-clip-text">Profile Information</h3>
         <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 space-y-6 shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Username</p>
-              {editMode ? (
-                <input
-                  type="text"
-                  name="username"
-                  value={editedUser?.username || ''}
-                  onChange={handleChange}
-                  className={`text-2xl font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-800'} rounded p-2`}
-                />
-              ) : (
-                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.username}</p>
+          {['username', 'email'].map((field) => (
+            <div key={field} className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{field.charAt(0).toUpperCase() + field.slice(1)}</p>
+                {editMode ? (
+                  <input
+                    type={field === 'email' ? 'email' : 'text'}
+                    name={field}
+                    value={(editedUser?.[field as keyof UpdateUserDto] as string) || ''}
+                    onChange={handleChange}
+                    className={`text-2xl font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-800'} rounded p-2`}
+                  />
+                ) : (
+                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {user[field as keyof Pick<UserEntity, 'username' | 'email'>]}
+                  </p>
+                )}
+              </div>
+              {!editMode && (
+                <button onClick={handleEdit} className="text-indigo-600 hover:text-indigo-800 transition-colors duration-300">
+                  <FiEdit2 size={24} />
+                </button>
               )}
             </div>
-            {!editMode && (
-              <button onClick={handleEdit} className="text-indigo-600 hover:text-indigo-800 transition-colors duration-300">
-                <FiEdit2 size={24} />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Email Address</p>
-              {editMode ? (
-                <input
-                  type="email"
-                  name="email"
-                  value={editedUser?.email || ''}
-                  onChange={handleChange}
-                  className={`text-2xl font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-800'} rounded p-2`}
-                />
-              ) : (
-                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.email}</p>
-              )}
-            </div>
-            {!editMode && (
-              <button onClick={handleEdit} className="text-indigo-600 hover:text-indigo-800 transition-colors duration-300">
-                <FiEdit2 size={24} />
-              </button>
-            )}
-          </div>
+          ))}
           {editMode && (
             <div className="flex justify-end space-x-4 mt-4">
               <button onClick={handleCancel} className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition-colors duration-300">
@@ -163,9 +120,9 @@ const UserAccountPage: React.FC = () => {
         </div>
       </div>
     );
-  };
+  }, [user, loading, error, darkMode, editMode, editedUser, handleChange, handleEdit, handleCancel, handleSave, handleDelete]);
 
-  const renderTabContent = () => {
+  const renderTabContent = useCallback(() => {
     switch (activeTab) {
       case 'profile':
         return renderProfileContent();
@@ -193,10 +150,8 @@ const UserAccountPage: React.FC = () => {
             </div>
           </div>
         );
-      default:
-        return null;
     }
-  };
+  }, [activeTab, darkMode, renderProfileContent]);
 
   return (
     <div className={`min-h-screen py-12 transition-colors duration-300 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
@@ -209,11 +164,7 @@ const UserAccountPage: React.FC = () => {
         </div>
         <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 ease-in-out`}>
           <div className="flex border-b border-gray-200 dark:border-gray-700">
-            {[
-              { id: 'profile', icon: FiUser, label: 'Profile' },
-              { id: 'orders', icon: FiShoppingBag, label: 'Orders' },
-              { id: 'wishlist', icon: FiHeart, label: 'Wishlist' },
-            ].map((tab) => (
+            {tabs.map((tab) => (
               <button
                 key={tab.id}
                 className={`flex-1 py-6 px-6 text-center font-medium flex items-center justify-center transition-all duration-300 ${

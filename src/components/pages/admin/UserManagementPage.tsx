@@ -1,126 +1,96 @@
 import React, { useState, useEffect } from 'react';
-import { AuthService, Role, UserEntity } from '../../../services/users/users.service';
+import { useUser } from '../../../hooks/useUser';
+import { useRole } from '../../../hooks/useRole';
 import { useAlert } from '../../AlertsProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiLock, FiChevronDown, FiSearch } from 'react-icons/fi';
+import { UserEntity } from '../../../api/types/user.type';
+import { CreateUserDto } from '../../../api/dto/user/create-user.dto';
+import { UpdateUserDto } from '../../../api/dto/user/update-user.dto';
 
 const UserManagementPage: React.FC = () => {
-    const [users, setUsers] = useState<UserEntity[]>([]);
-    const [newUser, setNewUser] = useState({ username: '', email: '', password: '' });
+    const [newUser, setNewUser] = useState<CreateUserDto>({ username: '', email: '', password: '' });
     const [editingUser, setEditingUser] = useState<UserEntity | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchType, setSearchType] = useState<'email' | 'id'>('email');
     const [searchResult, setSearchResult] = useState<UserEntity | null>(null);
-    const [roles, setRoles] = useState<Role[]>([]);
-    const { showAlert } = useAlert();
-  
-    useEffect(() => {
-      fetchUsers();
-      fetchRoles();
-    }, []);
-  
-    const fetchUsers = async (cursor?: string) => {
-      setIsLoading(true);
-      try {
-        const result = await AuthService.getUsers(cursor);
-        setUsers(prev => cursor ? [...prev, ...result.users] : result.users);
-        setNextCursor(result.nextCursor);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        showAlert('Failed to fetch users', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-    const fetchRoles = async () => {
+    const { users, error: userError, loading: userLoading, getUsers, createUser, updateUser, deleteUser, getUserById, getUserByEmail } = useUser();
+    const { roles, error: roleError, loading: roleLoading, getRoles } = useRole();
+    const { showAlert } = useAlert();
+
+    useEffect(() => {
+        getUsers({ limit: 10 });
+        getRoles();
+    }, [getUsers, getRoles]);
+
+    const handleCreateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
         try {
-            const fetchedRoles = await AuthService.getRoles();
-            setRoles(fetchedRoles);
+            await createUser(newUser);
+            showAlert('User created successfully', 'success');
+            setNewUser({ username: '', email: '', password: '' });
         } catch (error) {
-            console.error('Error fetching roles:', error);
-            showAlert('Failed to fetch roles', 'error');
+            showAlert('Failed to create user', 'error');
         }
     };
-  
-    const handleCreateUser = async (e: React.FormEvent) => {
-      e.preventDefault();
-      try {
-        const createdUser = await AuthService.createUser(newUser);
-        showAlert('User created successfully', 'success');
-        setNewUser({ username: '', email: '', password: '' });
-        setUsers(prevUsers => [createdUser, ...prevUsers]);
-      } catch (error) {
-        console.error('Error creating user:', error);
-        showAlert('Failed to create user', 'error');
-      }
-    };
-  
+
     const handleUpdateUser = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingUser) return;
         try {
-            const updatedUser = await AuthService.updateUser(editingUser.id, editingUser);
+            const updateUserDto: UpdateUserDto = {
+                email: editingUser.email,
+                username: editingUser.username,
+                roles: editingUser.roles
+            };
+            await updateUser(editingUser.id, updateUserDto);
             showAlert('User updated successfully', 'success');
             setEditingUser(null);
-            setUsers(prevUsers => prevUsers.map(user => user.id === updatedUser.id ? updatedUser : user));
-            if (searchResult && searchResult.id === updatedUser.id) {
-                setSearchResult(updatedUser);
-            }
         } catch (error) {
-            console.error('Error updating user:', error);
             showAlert('Failed to update user', 'error');
         }
     };
-  
-    const handleDeleteUser = async (userId: string) => {
-      if (window.confirm('Are you sure you want to delete this user?')) {
-        try {
-          await AuthService.deleteUser(userId);
-          showAlert('User deleted successfully', 'success');
-          setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
-        } catch (error) {
-          console.error('Error deleting user:', error);
-          showAlert('Failed to delete user', 'error');
-        }
-      }
-    };
 
-    
-  
-    const loadMore = () => {
-      if (nextCursor) {
-        fetchUsers(nextCursor);
-      }
+    const handleDeleteUser = async (userId: string) => {
+        if (window.confirm('Are you sure you want to delete this user?')) {
+            try {
+                await deleteUser(userId);
+                showAlert('User deleted successfully', 'success');
+            } catch (error) {
+                showAlert('Failed to delete user', 'error');
+            }
+        }
     };
 
     const handleSearch = async () => {
-        setIsLoading(true);
         try {
-          let user;
-          if (searchType === 'email') {
-            user = await AuthService.getUserByEmail(searchTerm);
-          } else {
-            user = await AuthService.getUserById(searchTerm);
-          }
-          if (user) {
-            setSearchResult(user);
-          } else {
-            showAlert('User not found', 'error');
-          }
+            let user;
+            if (searchType === 'email') {
+                user = await getUserByEmail(searchTerm);
+            } else {
+                user = await getUserById(searchTerm);
+            }
+            if (user) {
+                setSearchResult(user);
+            } else {
+                showAlert('User not found', 'error');
+            }
         } catch (error) {
-          console.error('Error searching user:', error);
-          showAlert('Error searching user', 'error');
-        } finally {
-          setIsLoading(false);
+            showAlert('Error searching user', 'error');
         }
-      };
+    };
 
-  if (isLoading && users.length === 0) {
-    return <div className="flex justify-center items-center h-screen">Loading users...</div>;
-  }
+    const loadMore = () => {
+        if (nextCursor) {
+            getUsers({ cursor: nextCursor, limit: 10 });
+        }
+    };
+
+    if (userLoading && users.length === 0) {
+        return <div className="flex justify-center items-center h-screen">Loading users...</div>;
+    }
 
   return (
     <div className="container mx-auto p-4">

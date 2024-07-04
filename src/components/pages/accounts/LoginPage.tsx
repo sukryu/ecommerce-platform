@@ -1,34 +1,24 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../hooks/useAuth';
 import { useAlert } from '../../AlertsProvider';
-import { AuthService } from '../../../services/users/users.service';
+import { Link } from 'react-router-dom';
 
-interface LoginPageProps {
-  setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-const LoginPage: React.FC<LoginPageProps> = ({ setIsLoggedIn }) => {
+const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
+  const { login } = useAuth();
   const { showAlert } = useAlert();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-
     try {
-      await AuthService.login(email, password);
-      setIsLoggedIn(true);
-      showAlert('Successfully logged in!', 'success');
+      await login(email, password);
+      showAlert('Successfully logged in', 'success');
       navigate('/');
     } catch (error) {
-      console.error('Error during Login:', error);
-      showAlert('Failed to login. Please try again.', 'error');
-    } finally {
-      setIsLoading(false);
+      showAlert('Login failed. Please try again.', 'error');
     }
   };
 
