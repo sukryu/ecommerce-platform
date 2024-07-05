@@ -1,122 +1,80 @@
-import { useState, useCallback, useEffect } from 'react';
-import { ServiceFactory } from '../api/common/utils/service-factory';
-import { ApiError, NetworkError } from '../api/common/errors/custom-error-classes';
-import { UserEntity } from '../api/types/user.type';
-import { EmailLoginDto } from '../api/dto/auth/email-login.dto';
+import { useCallback } from 'react';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { login, logout, signup, updateProfile, deleteAccount, refreshToken, checkAuthStatus } from '../store/slices/authSlice';
 import { CreateUserDto } from '../api/dto/user/create-user.dto';
 import { UpdateUserDto } from '../api/dto/user/update-user.dto';
 
 export const useAuth = () => {
-  const [user, setUser] = useState<UserEntity | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const { user, error, isLoading } = useAppSelector((state) => state.auth);
 
-  const authService = ServiceFactory.getAuthService();
-
-  const checkAuthStatus = useCallback(async () => {
+  const loginUser = useCallback(async (email: string, password: string) => {
     try {
-      const userData = await authService.profile();
-      setUser(userData);
-    } catch (error) {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, [checkAuthStatus]);
-
-  const login = async (email: string, password: string) => {
-    try {
-      await authService.login({ email, password });
-      await checkAuthStatus();
+      await dispatch(login({ email, password })).unwrap();
     } catch (error) {
       throw error;
     }
-  };
+  }, [dispatch]);
 
-  const logout = async () => {
+  const logoutUser = useCallback(async () => {
     try {
-      await authService.logout();
-      setUser(null);
+      await dispatch(logout()).unwrap();
     } catch (error) {
       throw error;
     }
-  };
+  }, [dispatch]);
 
-  const signup = useCallback(async (createUserDto: CreateUserDto) => {
-    setLoading(true);
-    setError(null);
+  const signupUser = useCallback(async (createUserDto: CreateUserDto) => {
     try {
-      await authService.signup(createUserDto);
+      await dispatch(signup(createUserDto)).unwrap();
     } catch (error) {
-      handleError(error);
-    } finally {
-      setLoading(false);
+      throw error;
     }
-  }, []);
+  }, [dispatch]);
 
-  const updateProfile = useCallback(async (updateUserDto: UpdateUserDto) => {
-    setLoading(true);
-    setError(null);
+  const updateUserProfile = useCallback(async (updateUserDto: UpdateUserDto) => {
     try {
-      const updatedUser = await authService.updateProfile(updateUserDto);
-      setUser(updatedUser);
+      const updatedUser = await dispatch(updateProfile(updateUserDto)).unwrap();
       return updatedUser;
     } catch (error) {
-      handleError(error);
-    } finally {
-      setLoading(false);
+      throw error;
     }
-  }, []);
+  }, [dispatch]);
 
-  const deleteAccount = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const deleteUserAccount = useCallback(async () => {
     try {
-      await authService.deleteAccount();
-      setUser(null);
+      await dispatch(deleteAccount()).unwrap();
     } catch (error) {
-      handleError(error);
-    } finally {
-      setLoading(false);
+      throw error;
     }
-  }, []);
+  }, [dispatch]);
 
-  const refreshToken = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const refreshUserToken = useCallback(async () => {
     try {
-      await authService.refreshToken();
+      await dispatch(refreshToken()).unwrap();
     } catch (error) {
-      handleError(error);
-    } finally {
-      setLoading(false);
+      throw error;
     }
-  }, []);
+  }, [dispatch]);
 
-  const handleError = (error: unknown) => {
-    if (error instanceof ApiError) {
-      setError(`API Error: ${error.message}`);
-    } else if (error instanceof NetworkError) {
-      setError(`Network Error: ${error.message}`);
-    } else {
-      setError('An unexpected error occurred');
+  const checkUserAuthStatus = useCallback(async () => {
+    try {
+      await dispatch(checkAuthStatus()).unwrap();
+    } catch (error) {
+      throw error;
     }
-  };
+  }, [dispatch]);
 
   return { 
     user,
     error, 
-    loading, 
-    login, 
-    logout, 
-    signup, 
-    updateProfile, 
-    deleteAccount, 
-    refreshToken, 
-    checkAuthStatus 
+    loading: isLoading, 
+    login: loginUser, 
+    logout: logoutUser, 
+    signup: signupUser, 
+    updateProfile: updateUserProfile, 
+    deleteAccount: deleteUserAccount, 
+    refreshToken: refreshUserToken,
+    checkAuthStatus: checkUserAuthStatus
   };
 };

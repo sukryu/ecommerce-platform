@@ -59,7 +59,7 @@ const RoleManagementPage: React.FC = () => {
   const handleViewUsers = async (role: Role) => {
     try {
       const users = await getRoleUsers(role.id);
-      setSelectedRoleUsers({ role, users: users || [] });  // Handle potential undefined value
+      setSelectedRoleUsers({ role, users });
     } catch (error) {
       showAlert('Failed to fetch users for this role', 'error');
     }

@@ -1,25 +1,23 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAppSelector } from '../store/hooks';
 import Loading from './Loading';
 
 interface ProtectedRouteProps {
-  element: React.ReactElement;
+  children: React.ReactElement;
   allowedRoles?: string[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ element, allowedRoles }) => {
-  const { user, loading } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
+  const { user, isLoading } = useAppSelector((state) => state.auth);
   const location = useLocation();
 
-  console.debug(`user: ${user}`);
-
-  if (loading) {
+  if (isLoading) {
     return <Loading />;
   }
 
   if (!user) {
-    console.error(`user not provided.`);
+    console.error(`User not authenticated.`);
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -27,7 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ element, allowedRoles }
     return <Navigate to="/" replace />;
   }
 
-  return element;
+  return children;
 };
 
 export default ProtectedRoute;

@@ -8,6 +8,7 @@ const SignUpPage: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const { signup, error } = useAuth();
@@ -19,7 +20,7 @@ const SignUpPage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const createUserDto: CreateUserDto = { username: name, email, password };
+      const createUserDto: CreateUserDto = { username: name, email, password, phoneNumber };
       await signup(createUserDto);
       showAlert('User created successfully!', 'success');
       navigate('/login');
@@ -89,6 +90,24 @@ const SignUpPage: React.FC = () => {
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
+                phoneNumber
+              </label>
+              <div className="mt-1">
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="phoneNumber"
+                  autoComplete="phoneNumber"
+                  required
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
                 />
               </div>
             </div>

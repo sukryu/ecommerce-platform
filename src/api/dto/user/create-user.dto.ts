@@ -1,9 +1,8 @@
-import { CreateUserInfoDto } from "../userInfo/create-userInfo.dto";
-
-export class CreateUserDto {
-    email?: string;
-    username?: string;
-    password?: string;
-    userInfo?: CreateUserInfoDto;
+export interface CreateUserDto {
+    email: string;
+    username: string;
+    password: string;
+    phoneNumber: string;
+    isEmailVerified?: boolean;
     roles?: string[];
 }
